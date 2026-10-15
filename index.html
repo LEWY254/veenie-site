@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Veenie — Devlogs and motion graphics on your Mac</title>
+<meta name="description" content="Veenie is a native macOS editor for devlogs and motion graphics. Record your screen, script scenes in TypeScript, and export at full quality.">
+<meta name="theme-color" content="#0b1020">
+<meta property="og:title" content="Veenie — Devlogs and motion graphics on your Mac">
+<meta property="og:description" content="A native macOS editor for devlogs and motion graphics, written in Swift.">
+<meta property="og:image" content="img/01-live-video-workspace.jpg">
+<link rel="icon" type="image/png" href="img/favicon.png">
+<style>
+  :root {
+    --bg: #0b1020;
+    --bg-2: #111832;
+    --card: #141b38;
+    --line: #232c52;
+    --text: #eef1fb;
+    --muted: #a3acd0;
+    --accent: #7c8cff;
+    --accent-2: #b48cff;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 17px/1.6 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; text-decoration: none; }
+  img { max-width: 100%; display: block; }
+  .wrap { width: min(1120px, 100% - 40px); margin-inline: auto; }
+
+  /* nav */
+  nav {
+    position: sticky; top: 0; z-index: 10;
+    backdrop-filter: blur(14px);
+    background: rgba(11, 16, 32, .75);
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 19px; letter-spacing: -.01em; }
+  .brand img { width: 30px; height: 30px; border-radius: 7px; }
+  .links { display: flex; align-items: center; gap: 26px; font-size: 15px; color: var(--muted); }
+  .links a:hover { color: var(--text); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 22px; border-radius: 999px;
+    font-weight: 600; font-size: 16px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #0b1020;
+    transition: transform .15s, box-shadow .15s;
+    box-shadow: 0 8px 30px rgba(124,140,255,.25);
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 12px 36px rgba(124,140,255,.4); }
+  .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); box-shadow: none; }
+  .btn.ghost:hover { border-color: var(--accent); }
+  .btn.small { padding: 8px 16px; font-size: 14px; }
+
+  /* hero */
+  .hero { text-align: center; padding: 88px 0 40px; position: relative; overflow: hidden; }
+  .hero::before {
+    content: ""; position: absolute; inset: -200px 0 auto; height: 700px; z-index: -1;
+    background:
+      radial-gradient(600px 320px at 30% 30%, rgba(124,140,255,.28), transparent 70%),
+      radial-gradient(520px 300px at 72% 24%, rgba(180,140,255,.22), transparent 70%);
+  }
+  .hero .icon { width: 96px; height: 96px; margin: 0 auto 28px; filter: drop-shadow(0 14px 30px rgba(124,140,255,.35)); }
+  .pill {
+    display: inline-block; padding: 5px 14px; border-radius: 999px;
+    border: 1px solid var(--line); color: var(--muted); font-size: 14px; margin-bottom: 22px;
+    background: rgba(255,255,255,.03);
+  }
+  h1 {
+    font-size: clamp(40px, 7vw, 74px); line-height: 1.05; letter-spacing: -.035em;
+    margin: 0 auto 22px; max-width: 880px;
+  }
+  .grad { background: linear-gradient(135deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { font-size: clamp(18px, 2.2vw, 22px); color: var(--muted); max-width: 680px; margin: 0 auto 34px; }
+  .cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .req { margin-top: 18px; font-size: 14px; color: var(--muted); }
+  .shot {
+    margin-top: 64px; border-radius: 18px; overflow: hidden;
+    border: 1px solid var(--line);
+    box-shadow: 0 40px 100px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.04);
+  }
+
+  /* sections */
+  section { padding: 96px 0; }
+  .eyebrow { color: var(--accent); font-weight: 600; font-size: 14px; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 12px; }
+  h2 { font-size: clamp(30px, 4.4vw, 46px); line-height: 1.12; letter-spacing: -.025em; margin: 0 0 16px; }
+  .sub { color: var(--muted); max-width: 640px; margin: 0 0 48px; }
+  .center { text-align: center; }
+  .center .sub { margin-inline: auto; }
+
+  .grid { display: grid; gap: 20px; grid-template-columns: repeat(3, 1fr); }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 28px; transition: border-color .2s, transform .2s;
+  }
+  .card:hover { border-color: rgba(124,140,255,.5); transform: translateY(-3px); }
+  .card .ico {
+    width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center;
+    font-size: 22px; margin-bottom: 18px;
+    background: linear-gradient(135deg, rgba(124,140,255,.2), rgba(180,140,255,.2));
+  }
+  .card h3 { margin: 0 0 8px; font-size: 19px; letter-spacing: -.01em; }
+  .card p { margin: 0; color: var(--muted); font-size: 15.5px; }
+
+  /* showcase rows */
+  .row { display: grid; grid-template-columns: 1fr 1.35fr; gap: 56px; align-items: center; margin-bottom: 96px; }
+  .row:last-child { margin-bottom: 0; }
+  .row.flip { grid-template-columns: 1.35fr 1fr; }
+  .row.flip .text { order: 2; }
+  .row .text h3 { font-size: 30px; letter-spacing: -.02em; line-height: 1.15; margin: 0 0 14px; }
+  .row .text p { color: var(--muted); margin: 0 0 16px; }
+  .row ul { list-style: none; padding: 0; margin: 0; color: var(--muted); font-size: 15.5px; }
+  .row li { padding-left: 26px; position: relative; margin-bottom: 8px; }
+  .row li::before { content: "✓"; position: absolute; left: 0; color: var(--accent); font-weight: 700; }
+  .row .shot { margin-top: 0; }
+
+  .band { background: var(--bg-2); border-block: 1px solid var(--line); }
+
+  pre {
+    background: #0a0f20; border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 22px 24px; overflow-x: auto; margin: 0;
+    font: 14.5px/1.7 ui-monospace, "SF Mono", Menlo, monospace; color: #cdd5f5;
+  }
+  .k { color: #c792ea; } .f { color: #82aaff; } .s { color: #c3e88d; } .c { color: #5c6a99; }
+
+  .keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 8px; }
+  .key { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; font-size: 14px; color: var(--muted); }
+  kbd {
+    display: inline-block; min-width: 26px; text-align: center; padding: 1px 8px; margin-right: 6px;
+    border-radius: 6px; border: 1px solid var(--line); background: #0a0f20; color: var(--text);
+    font: 13px ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  .cta-box {
+    text-align: center; padding: 72px 24px; border-radius: 24px; border: 1px solid var(--line);
+    background:
+      radial-gradient(500px 240px at 50% 0%, rgba(124,140,255,.25), transparent 70%),
+      var(--card);
+  }
+  .cta-box h2 { margin-bottom: 14px; }
+  .cta-box .sub { margin: 0 auto 30px; }
+
+  footer { padding: 40px 0 60px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
+  footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  footer a:hover { color: var(--text); }
+
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr 1fr; }
+    .row, .row.flip { grid-template-columns: 1fr; gap: 28px; margin-bottom: 64px; }
+    .row.flip .text { order: 0; }
+    .keys { grid-template-columns: 1fr 1fr; }
+    section { padding: 64px 0; }
+  }
+  @media (max-width: 600px) {
+    .grid { grid-template-columns: 1fr; }
+    .links a:not(.btn) { display: none; }
+    .hero { padding-top: 56px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="img/icon.png" alt="">Veenie</a>
+    <div class="links">
+      <a href="#features">Features</a>
+      <a href="#workspaces">Workspaces</a>
+      <a href="#scripting">Scripting</a>
+      <a class="btn small" href="https://github.com/LEWY254/veenie">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <img class="icon" src="img/icon.png" alt="Veenie app icon">
+    <span class="pill">Native macOS · Swift · Built for devlogs</span>
+    <h1>Devlogs and motion graphics, <span class="grad">all in one editor.</span></h1>
+    <p class="lead">Record your screen, tell the story on a simulated desktop, and animate it with code or nodes. What you see in the preview is exactly what you export.</p>
+    <div class="cta">
+      <a class="btn" href="https://github.com/LEWY254/veenie">Get Veenie</a>
+      <a class="btn ghost" href="#features">See what it does</a>
+    </div>
+    <p class="req">Requires macOS 15 or later</p>
+    <div class="shot"><img src="img/01-live-video-workspace.jpg" alt="Veenie's Live Video workspace with a simulated desktop, timeline and inspector" width="1800" height="1125"></div>
+  </div>
+</header>
+
+<section id="features">
+  <div class="wrap">
+    <div class="center">
+      <div class="eyebrow">Features</div>
+      <h2>Everything a devlog needs</h2>
+      <p class="sub">From the first screen recording to the final export, in a single native app.</p>
+    </div>
+    <div class="grid">
+      <div class="card"><div class="ico">🎥</div><h3>Screen recording</h3><p>Capture a display or window at native resolution in HEVC or ProRes, with system audio, a separate mic track and an optional camera.</p></div>
+      <div class="card"><div class="ico">🖱️</div><h3>Smooth cursor and auto zoom</h3><p>The cursor is recorded separately and redrawn smoothly. Zooms are generated from your clicks, and every one is editable.</p></div>
+      <div class="card"><div class="ico">🖥️</div><h3>Live Video desktops</h3><p>Tell stories on a simulated desktop with windows, a dock, a menu bar, a scripted cursor, AI chats, terminals and notifications.</p></div>
+      <div class="card"><div class="ico">⌨️</div><h3>Scripted scenes</h3><p>Write animations in TypeScript and JSX with a Motion Canvas–style API, or wire them up visually in the node editor.</p></div>
+      <div class="card"><div class="ico">💬</div><h3>On-device captions</h3><p>Transcribe speech on your Mac into styled captions with the spoken word highlighted. Export SRT files too.</p></div>
+      <div class="card"><div class="ico">🤖</div><h3>Assistant and MCP</h3><p>Built-in Assistant with your own Anthropic key, plus a local MCP endpoint so other agents can edit and export your project.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="workspaces">
+  <div class="wrap">
+    <div class="row">
+      <div class="text">
+        <div class="eyebrow">Edit</div>
+        <h3>A timeline that stays out of your way</h3>
+        <p>Multi-track editing with keyframes, easing curves, speed regions and snapping. Split, trim, ripple and duplicate with the shortcuts you expect.</p>
+        <ul>
+          <li>Drag above the top track to make a new one</li>
+          <li>Filmstrips and waveforms on every clip</li>
+          <li>Export H.264, HEVC, ProRes or animated GIF</li>
+        </ul>
+      </div>
+      <div class="shot"><img src="img/02-edit-workspace.jpg" alt="Veenie edit workspace" loading="lazy" width="1800" height="1125"></div>
+    </div>
+
+    <div class="row flip">
+      <div class="shot"><img src="img/03-animate-workspace.jpg" alt="Veenie animate workspace with keyframe editor" loading="lazy" width="1800" height="1125"></div>
+      <div class="text">
+        <div class="eyebrow">Animate</div>
+        <h3>Keyframe anything</h3>
+        <p>Click the diamond next to any property to add a keyframe at the playhead. Shape the bezier curve in the Keyframes editor, or start from an animation preset.</p>
+        <ul>
+          <li>Position, scale, rotation, opacity and blur</li>
+          <li>Drag keys directly on the curve</li>
+          <li>Presets write keyframes you can refine</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="text">
+        <div class="eyebrow">Live Video</div>
+        <h3>Directed cursor, believable desktops</h3>
+        <p>Plan timed cursor actions like move, click, drag, type and scroll. Veenie works out the path and what each action does to the windows, live, so nothing is baked into keyframes.</p>
+        <ul>
+          <li>Timed focus, minimize, maximize and close</li>
+          <li>Streaming AI chat replies and terminal output</li>
+          <li>Templates for investigations, group calls and late-night chats</li>
+        </ul>
+      </div>
+      <div class="shot"><img src="img/07-live-video-cursor.jpg" alt="Live Video cursor planning" loading="lazy" width="1800" height="1125"></div>
+    </div>
+
+    <div class="row flip">
+      <div class="shot"><img src="img/08-live-video-captions.jpg" alt="Captions with word highlight" loading="lazy" width="1800" height="1125"></div>
+      <div class="text">
+        <div class="eyebrow">Captions</div>
+        <h3>Captions that follow the voice</h3>
+        <p>Generate captions on device with the Speech framework. Pick a style and the word being spoken is highlighted as it plays.</p>
+        <ul>
+          <li>Nothing leaves your Mac</li>
+          <li>Audio visuals: waveform, bars, spectrum and pulse</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="text">
+        <div class="eyebrow">Code clips</div>
+        <h3>Show code the way you mean it</h3>
+        <p>Pick a language and theme, spotlight specific lines with Focus Lines, and animate Reveal for a typewriter effect.</p>
+        <ul>
+          <li>Syntax highlighting via highlight.js</li>
+          <li>Animate focus to guide the viewer's eye</li>
+        </ul>
+      </div>
+      <div class="shot"><img src="img/06-code-clip.jpg" alt="Code clip with focused lines" loading="lazy" width="1800" height="1125"></div>
+    </div>
+  </div>
+</section>
+
+<section id="scripting">
+  <div class="wrap">
+    <div class="row">
+      <div class="text">
+        <div class="eyebrow">Scripting</div>
+        <h2>Motion graphics as code</h2>
+        <p>Script clips use TypeScript and JSX with signals, generator flow, flex layout and code morphing. Scenes are simulated once and drawn at output resolution, so they stay sharp at any export size.</p>
+        <p>Prefer not to write code? Switch any scene to Nodes and wire objects, animations and values together. It compiles to the same script.</p>
+      </div>
+      <pre><span class="c">// A scene is a generator.</span>
+<span class="k">yield*</span> <span class="f">code</span>().<span class="f">selection</span>(<span class="f">lines</span>(<span class="s">1</span>, <span class="s">2</span>), <span class="s">0.6</span>);
+<span class="k">yield*</span> <span class="f">all</span>(
+  title().<span class="f">opacity</span>(<span class="s">1</span>, <span class="s">0.4</span>),
+  card().<span class="f">position</span>.<span class="f">y</span>(<span class="s">0</span>, <span class="s">0.6</span>),
+);</pre>
+    </div>
+    <div class="row flip" style="margin-bottom:0">
+      <div class="shot"><img src="img/04-script-editor.jpg" alt="Veenie script editor" loading="lazy" width="1800" height="1125"></div>
+      <div class="text">
+        <div class="eyebrow">Shading</div>
+        <h3>Shader graphs for the finishing touch</h3>
+        <p>Scenes can draw project shader graphs with the <code>&lt;Shader&gt;</code> component, so effects live right next to your animation.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="center">
+      <div class="eyebrow">Keyboard first</div>
+      <h2>Fast hands, fast edits</h2>
+    </div>
+    <div class="keys">
+      <div class="key"><kbd>Space</kbd>Play / pause</div>
+      <div class="key"><kbd>S</kbd>Split at playhead</div>
+      <div class="key"><kbd>⌘D</kbd>Duplicate</div>
+      <div class="key"><kbd>⌘E</kbd>Export</div>
+      <div class="key"><kbd>⇧⌘R</kbd>New recording</div>
+      <div class="key"><kbd>⌘I</kbd>Import media</div>
+      <div class="key"><kbd>⇧⌘A</kbd>Open Assistant</div>
+      <div class="key"><kbd>⌘?</kbd>Searchable help</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="cta-box">
+      <img src="img/icon.png" alt="" width="72" height="72" style="margin:0 auto 20px;border-radius:16px">
+      <h2>Make your next devlog in Veenie</h2>
+      <p class="sub">Free to follow along on GitHub. Build it with Xcode 16 and Swift 6 on macOS 15 or later.</p>
+      <a class="btn" href="https://github.com/LEWY254/veenie">View on GitHub</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>© <span id="y">2026</span> Veenie</span>
+    <span><a href="https://github.com/LEWY254/veenie">Source</a> · <a href="#top">Back to top</a></span>
+  </div>
+</footer>
+<script>document.getElementById('y').textContent = new Date().getFullYear();</script>
+</body>
+</html>
