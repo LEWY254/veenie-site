@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Veenie — a Mac editor for devlogs and motion graphics</title>
-<meta name="description" content="Veenie is a native macOS editor for devlogs and motion graphics. Record your screen, stage it on a simulated desktop, animate with keyframes or code, and export exactly what you see.">
+<meta name="description" content="Veenie is a native macOS editor for devlogs and motion graphics. Record your screen, script scenes in TypeScript, build shaders from nodes, stage stories on a simulated desktop, and export exactly what you see.">
 <meta name="theme-color" content="#f3eadf">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Veenie">
@@ -17,30 +17,33 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <style>
   :root {
-    /* Taken from the app icon: shell, stripe, aubergine. */
+    /* From the app icon: shell, stripe, aubergine. */
     --paper: #f3eadf;
-    --paper-deep: #eadfd0;
     --rule: #d9cab7;
     --ink: #24131c;
     --ink-soft: #6e5a63;
-    --plum: #2c1822;
-    --plum-line: #4a2d3b;
+    --plum: #1b1218;
+    --plum-2: #2a1b27;
+    --plum-line: #3b2735;
     --stripe: #c0462e;
-    --shell: #f6e3cc;
+    --stripe-lit: #e0714f;
+    --shell: #f2e8da;
+    --shell-soft: #b9a5ad;
 
+    --c-film: #1b1218;
     --c-record: #c0462e;
-    --c-stage: #5c3348;
+    --c-script: #7a4560;
+    --c-shade: #3f6662;
+    --c-stage: #9c5a68;
     --c-edit: #8e6b45;
-    --c-animate: #3f6662;
-    --c-caption: #9c5a68;
-    --c-specs: #2c1822;
+    --c-auto: #4a3a5c;
 
     --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
     --sans: "Geist", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
     --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
     --gutter: clamp(16px, 4vw, 48px);
-    --max: 1280px;
+    --max: 1360px;
   }
 
   * { box-sizing: border-box; }
@@ -53,7 +56,7 @@
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
-  img { display: block; max-width: 100%; height: auto; }
+  img, video { display: block; max-width: 100%; height: auto; }
   a { color: inherit; }
   ::selection { background: var(--stripe); color: var(--shell); }
 
@@ -63,7 +66,7 @@
   /* ---------- Header: the page is a timeline ---------- */
   .bar {
     position: sticky; top: 0; z-index: 20;
-    background: color-mix(in srgb, var(--paper) 88%, transparent);
+    background: color-mix(in srgb, var(--paper) 90%, transparent);
     backdrop-filter: saturate(1.4) blur(12px);
     -webkit-backdrop-filter: saturate(1.4) blur(12px);
     border-bottom: 1px solid var(--rule);
@@ -71,7 +74,6 @@
   .bar .wrap { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 28px; height: 60px; }
   .mark { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 600; letter-spacing: -.01em; }
   .mark img { width: 28px; height: 28px; }
-
   .track { position: relative; height: 30px; display: flex; gap: 2px; }
   .clip {
     flex: 1 1 0; min-width: 0;
@@ -79,136 +81,119 @@
     border-radius: 4px;
     color: var(--shell); text-decoration: none;
     font: 500 11px/1 var(--mono); letter-spacing: .03em; text-transform: uppercase;
-    white-space: nowrap; overflow: hidden; text-overflow: clip;
-    opacity: .5;
-    transition: opacity .2s;
+    white-space: nowrap; overflow: hidden;
+    opacity: .45; transition: opacity .2s;
   }
   .clip:hover, .clip.on { opacity: 1; }
-  .playhead {
-    position: absolute; top: -8px; bottom: -8px; left: 0; width: 1px;
-    background: var(--stripe); pointer-events: none;
-    transform: translateX(0);
-  }
-  .playhead::before {
-    content: ""; position: absolute; top: 0; left: -5px;
-    border: 5px solid transparent; border-top: 6px solid var(--stripe);
-  }
+  .playhead { position: absolute; top: -8px; bottom: -8px; left: 0; width: 1px; background: var(--stripe); pointer-events: none; }
+  .playhead::before { content: ""; position: absolute; top: 0; left: -5px; border: 5px solid transparent; border-top: 6px solid var(--stripe); }
   .tc { font: 500 13px/1 var(--mono); font-variant-numeric: tabular-nums; color: var(--ink-soft); }
   .tc b { color: var(--ink); font-weight: 500; }
 
   /* ---------- Hero ---------- */
-  .hero { padding: clamp(56px, 10vw, 128px) 0 0; }
+  .hero { padding: clamp(56px, 9vw, 120px) 0 clamp(48px, 7vw, 88px); }
   .kicker { color: var(--ink-soft); margin: 0 0 28px; display: flex; gap: 14px; flex-wrap: wrap; }
   .kicker span + span::before { content: "/"; margin-right: 14px; color: var(--rule); }
-  h1 {
-    font: 400 clamp(64px, 13vw, 184px)/.86 var(--serif);
-    letter-spacing: -.035em;
-    margin: 0;
-  }
+  h1 { font: 400 clamp(64px, 13vw, 190px)/.86 var(--serif); letter-spacing: -.035em; margin: 0; }
   h1 em, h2 em { font-style: italic; color: var(--stripe); }
-  .hero-foot {
-    display: grid; grid-template-columns: minmax(0, 560px) auto; justify-content: space-between; align-items: end;
-    gap: 32px; margin: 44px 0 clamp(48px, 7vw, 88px);
-  }
-  .lede { font-size: clamp(18px, 1.7vw, 21px); line-height: 1.5; margin: 0; color: var(--ink); }
+  .hero-foot { display: grid; grid-template-columns: minmax(0, 580px) auto; justify-content: space-between; align-items: end; gap: 32px; margin-top: 44px; }
+  .lede { font-size: clamp(18px, 1.7vw, 21px); line-height: 1.5; margin: 0; }
   .lede span { color: var(--ink-soft); }
   .actions { display: flex; align-items: center; gap: 22px; }
   .btn {
     display: inline-flex; align-items: center; gap: 10px;
     background: var(--plum); color: var(--shell);
-    padding: 14px 20px; border-radius: 8px;
-    font-weight: 500; font-size: 15px; text-decoration: none;
+    padding: 14px 20px; border-radius: 8px; border: 0; cursor: pointer;
+    font: 500 15px/1 var(--sans); text-decoration: none;
     transition: background .2s;
   }
   .btn:hover { background: var(--stripe); }
-  .btn svg { width: 16px; height: 16px; }
+  .btn svg { width: 14px; height: 14px; }
   .link { font-size: 15px; text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 4px; }
   .link:hover { text-decoration-color: var(--stripe); }
 
-  .stage {
-    background: var(--plum);
-    padding: clamp(20px, 5vw, 72px) 0;
-    position: relative;
-  }
-  .stage::after {
-    /* a ruler along the bottom edge, like the one under every timeline */
-    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 14px;
-    background:
-      repeating-linear-gradient(90deg, var(--plum-line) 0 1px, transparent 1px 80px) bottom / 100% 14px no-repeat,
-      repeating-linear-gradient(90deg, var(--plum-line) 0 1px, transparent 1px 16px) bottom / 100% 6px no-repeat;
-  }
-  .frame { border-radius: 10px; overflow: hidden; box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 40px 80px -30px rgba(0,0,0,.7); }
-  .stage figcaption { color: #a88c98; margin-top: 18px; }
+  /* ---------- Film ---------- */
+  .film { background: var(--plum); color: var(--shell); padding: clamp(28px, 5vw, 72px) 0 clamp(64px, 9vw, 120px); scroll-margin-top: 60px; }
+  .player { position: relative; border-radius: 12px; overflow: hidden; background: #000; box-shadow: 0 40px 90px -40px rgba(0,0,0,.9); }
+  .player video { width: 100%; aspect-ratio: 16 / 9; }
+  .film-meta { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 18px; color: var(--shell-soft); }
+  .made-in { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: clamp(16px, 2.4vw, 32px); margin-top: clamp(72px, 10vw, 128px); align-items: end; }
+  .made-in h2 { grid-column: 1 / span 6; color: var(--shell); margin: 0; }
+  .made-in h2 em { color: var(--stripe-lit); }
+  .made-in p { grid-column: 8 / -1; color: var(--shell-soft); margin: 0; }
+  .film .shot { margin-top: 40px; box-shadow: 0 0 0 1px var(--plum-line), 0 40px 90px -40px rgba(0,0,0,.9); }
+  .film figcaption { color: var(--shell-soft); }
 
   /* ---------- Chapters ---------- */
-  .chapter { border-top: 1px solid var(--rule); padding: clamp(64px, 9vw, 120px) 0; scroll-margin-top: 60px; }
-  .chapter:first-of-type { border-top: 0; }
-  .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: clamp(16px, 2.4vw, 32px); }
-  .copy { grid-column: 1 / span 4; align-self: start; position: sticky; top: 100px; }
-  .media { grid-column: 6 / -1; }
-  .label { display: flex; align-items: center; gap: 10px; color: var(--ink-soft); margin: 0 0 22px; }
+  .chapter { border-top: 1px solid var(--rule); padding: clamp(72px, 10vw, 136px) 0; scroll-margin-top: 60px; }
+  .head { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: clamp(16px, 2.4vw, 32px); align-items: end; margin-bottom: clamp(32px, 4vw, 56px); }
+  .head .title { grid-column: 1 / span 6; }
+  .head .body { grid-column: 8 / -1; }
+  .label { display: flex; align-items: center; gap: 10px; color: var(--ink-soft); margin: 0 0 20px; }
   .label i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
-  h2 {
-    font: 400 clamp(40px, 5vw, 64px)/.98 var(--serif);
-    letter-spacing: -.025em; margin: 0 0 22px;
-  }
-  .copy p { margin: 0 0 16px; color: var(--ink-soft); }
-  .copy p strong { color: var(--ink); font-weight: 500; }
+  h2 { font: 400 clamp(42px, 5.4vw, 76px)/.96 var(--serif); letter-spacing: -.025em; margin: 0; }
+  .body p { margin: 0 0 14px; color: var(--ink-soft); }
+  .body p:last-child { margin-bottom: 0; }
+  .body strong { color: var(--ink); font-weight: 500; }
 
-  .shot { border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 1px rgba(36,19,28,.12), 0 30px 60px -28px rgba(36,19,28,.45); }
   figure { margin: 0; }
-  figcaption.mono { color: var(--ink-soft); margin-top: 14px; }
+  .shot {
+    border-radius: 10px; overflow: hidden; background: #1e1e1e; cursor: zoom-in;
+    box-shadow: 0 0 0 1px rgba(36,19,28,.14), 0 36px 70px -36px rgba(36,19,28,.55);
+  }
+  .shot img { width: 100%; }
+  figcaption.mono { color: var(--ink-soft); margin-top: 14px; display: flex; justify-content: space-between; gap: 12px; }
+  .pair, .trio { display: grid; gap: clamp(16px, 2.4vw, 32px); margin-top: clamp(16px, 2.4vw, 32px); }
+  .pair { grid-template-columns: 1fr 1fr; }
+  .trio { grid-template-columns: repeat(3, 1fr); }
 
-  .specs { margin: 0; border-top: 1px solid var(--ink); }
-  .specs div { display: grid; grid-template-columns: 160px 1fr; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--rule); }
+  .boxed .shot { aspect-ratio: 4 / 3; background: #232323; }
+  .boxed .shot img { width: 100%; height: 100%; object-fit: contain; }
+  .terminal { background: var(--plum); color: var(--shell); border-radius: 10px; padding: clamp(20px, 3vw, 36px); display: flex; flex-direction: column; gap: 18px; flex: 1; }
+  .terminal .mono { color: var(--shell-soft); margin: 0; }
+  .terminal p:last-child { color: var(--shell-soft); margin: auto 0 0; font-size: 15px; }
+  .terminal pre { margin: 0; padding: 18px 20px; border-radius: 8px; background: #120c10; overflow-x: auto; font: 400 13.5px/1.7 var(--mono); color: var(--shell); }
+  .t-c { color: #8f6f7e; } .t-k { color: var(--stripe-lit); }
+  .mcp { display: flex; flex-direction: column; }
+  .pair > *, .trio > *, .terminal { min-width: 0; }
+  .specs { margin: clamp(40px, 5vw, 64px) 0 0; border-top: 1px solid var(--ink); display: grid; grid-template-columns: 1fr 1fr; column-gap: clamp(16px, 2.4vw, 32px); }
+  .specs div { display: grid; grid-template-columns: 140px 1fr; gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--rule); }
   .specs dt { font: 500 12px/1.9 var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-soft); }
   .specs dd { margin: 0; }
-
-  .big-specs div { padding: 22px 0; }
-  .big-specs dd { font: 400 clamp(24px, 2.6vw, 32px)/1.15 var(--serif); letter-spacing: -.01em; }
-
-  pre {
-    margin: 28px 0 0; padding: 22px 24px; border-radius: 8px; overflow-x: auto;
-    background: var(--plum); color: #e9d7c7;
-    font: 400 13.5px/1.7 var(--mono);
-  }
-  .t-k { color: #e48a72; } .t-f { color: var(--shell); } .t-n { color: #d7b07a; } .t-c { color: #8f6f7e; }
-
-  .sheet { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(16px, 2.4vw, 32px); margin-top: clamp(48px, 7vw, 96px); }
+  .specs.big dd { font: 400 clamp(22px, 2.2vw, 28px)/1.2 var(--serif); }
 
   /* ---------- Close ---------- */
-  .close { background: var(--plum); color: var(--shell); padding: clamp(80px, 12vw, 160px) 0 0; }
-  .close h2 { font-size: clamp(56px, 10vw, 140px); line-height: .9; margin-bottom: 40px; max-width: 12ch; }
-  .close h2 em { color: #e48a72; }
-  .close .btn { background: var(--shell); color: var(--plum); }
+  .close { background: var(--plum); color: var(--shell); padding: clamp(88px, 12vw, 168px) 0 0; overflow: hidden; }
+  .close .wrap { position: relative; }
+  .close h2 { font-size: clamp(60px, 11vw, 160px); line-height: .88; max-width: 11ch; }
+  .close h2 em { color: var(--stripe-lit); }
+  .close .shell { position: absolute; right: var(--gutter); top: 0; width: clamp(110px, 16vw, 220px); }
+  .close .btn { margin-top: 44px; background: var(--shell); color: var(--plum); }
   .close .btn:hover { background: var(--stripe); color: var(--shell); }
-  .close .shell { width: clamp(120px, 18vw, 220px); margin-left: auto; margin-top: -120px; }
-  footer {
-    margin-top: clamp(64px, 9vw, 120px);
-    border-top: 1px solid var(--plum-line);
-    padding: 24px 0 32px;
-    display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
-    color: #a88c98;
-  }
-  footer a { text-decoration: none; }
-  footer a:hover { color: var(--shell); }
+  footer { margin-top: clamp(72px, 10vw, 128px); border-top: 1px solid var(--plum-line); padding: 24px 0 32px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; color: var(--shell-soft); }
+
+  /* ---------- Full-size viewer ---------- */
+  dialog.zoom { padding: 0; border: 0; background: transparent; max-width: none; max-height: none; width: 100vw; height: 100vh; }
+  dialog.zoom::backdrop { background: rgba(20, 12, 17, .92); }
+  dialog.zoom .scroller { width: 100%; height: 100%; overflow: auto; display: grid; place-items: center; cursor: zoom-out; }
+  dialog.zoom img { max-width: none; width: auto; height: auto; }
+  dialog.zoom .hint { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); color: var(--shell-soft); background: rgba(0,0,0,.5); padding: 8px 12px; border-radius: 6px; }
 
   /* ---------- Small screens ---------- */
   @media (max-width: 960px) {
-    .copy, .media { grid-column: 1 / -1; position: static; }
-    .copy { margin-bottom: 36px; max-width: 620px; }
+    .head .title, .head .body, .made-in h2, .made-in p { grid-column: 1 / -1; }
+    .head .body, .made-in p { margin-top: 24px; max-width: 640px; }
     .hero-foot { grid-template-columns: 1fr; }
-    .sheet { grid-template-columns: 1fr 1fr; }
-    .sheet figure:last-child { display: none; }
-    .close .shell { margin-top: 32px; }
+    .trio { grid-template-columns: 1fr 1fr; }
+    .specs { grid-template-columns: 1fr; }
+    .close .shell { position: static; margin-bottom: 32px; }
   }
   @media (max-width: 720px) {
     .bar .wrap { grid-template-columns: auto 1fr; gap: 16px; }
     .mark span, .tc { display: none; }
-    .clip { padding: 0; justify-content: center; font-size: 0; }
+    .clip { padding: 0; font-size: 0; }
+    .pair, .trio { grid-template-columns: 1fr; }
     .specs div { grid-template-columns: 1fr; gap: 4px; }
-    .sheet { grid-template-columns: 1fr; }
-    .sheet figure:last-child { display: block; }
   }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -219,12 +204,13 @@
   <div class="wrap">
     <a class="mark" href="#top" aria-label="Veenie, back to top"><img src="img/icon.png" alt="" width="28" height="28"><span>Veenie</span></a>
     <nav class="track" aria-label="Sections">
+      <a class="clip" href="#film" style="background:var(--c-film)">Film</a>
       <a class="clip" href="#record" style="background:var(--c-record)">Record</a>
+      <a class="clip" href="#script" style="background:var(--c-script)">Script</a>
+      <a class="clip" href="#shade" style="background:var(--c-shade)">Shade</a>
       <a class="clip" href="#stage" style="background:var(--c-stage)">Stage</a>
       <a class="clip" href="#edit" style="background:var(--c-edit)">Edit</a>
-      <a class="clip" href="#animate" style="background:var(--c-animate)">Animate</a>
-      <a class="clip" href="#caption" style="background:var(--c-caption)">Caption</a>
-      <a class="clip" href="#specs" style="background:var(--c-specs)">Specs</a>
+      <a class="clip" href="#automate" style="background:var(--c-auto)">Automate</a>
       <span class="playhead" aria-hidden="true"></span>
     </nav>
     <span class="tc" aria-hidden="true">00:00:<b>00:00</b></span>
@@ -237,161 +223,258 @@
       <p class="kicker mono"><span>Native macOS editor</span><span>Swift</span><span>macOS 15+</span></p>
       <h1>Show your<br><em>work.</em></h1>
       <div class="hero-foot">
-        <p class="lede">Veenie is a video editor for devlogs and motion graphics. <span>Record your screen, stage it on a desktop you control, animate it with keyframes or code, and export exactly what you saw in the preview.</span></p>
+        <p class="lede">Veenie is a video editor for devlogs and motion graphics. <span>Record your screen, script scenes in TypeScript, build shaders from nodes, stage a story on a desktop you control, and export exactly what you saw in the preview.</span></p>
         <div class="actions">
-          <a class="btn" href="https://github.com/LEWY254">Follow on GitHub
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 12 12 4M5.5 4H12v6.5"/></svg></a>
-          <a class="link" href="#specs">Specs</a>
+          <a class="btn" href="#film" data-play>
+            <svg viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><path d="M3 1.5v11l9-5.5z"/></svg>
+            Watch the film</a>
+          <a class="link" href="#record">Take the tour</a>
         </div>
       </div>
     </div>
-    <div class="stage">
-      <figure class="wrap">
-        <div class="frame"><img src="img/live-video-workspace.jpg" alt="Veenie's Live Video workspace: a simulated macOS desktop with a code editor, terminal, video player and AI chat, above a multi-track timeline" width="2200" height="1305" fetchpriority="high"></div>
-        <figcaption class="mono">Live Video workspace — Sample.veenie</figcaption>
-      </figure>
-    </div>
   </section>
 
-  <section class="chapter" id="record" data-clip="0">
-    <div class="wrap grid">
-      <div class="copy">
-        <p class="label mono"><i style="background:var(--c-record)"></i>01 — Record</p>
-        <h2>Record once. <em>Fix it</em> afterwards.</h2>
-        <p>Press <strong>⇧⌘R</strong> and capture a display or a window at native resolution.</p>
-        <p>The cursor goes on its own track, so Veenie can redraw it smoothly, generate zooms from your clicks, and let you change any of it after the take.</p>
-      </div>
-      <div class="media">
-        <dl class="specs big-specs">
-          <div><dt>Video</dt><dd>HEVC or ProRes, native resolution</dd></div>
-          <div><dt>Audio</dt><dd>System audio, plus the mic on its own track</dd></div>
-          <div><dt>Camera</dt><dd>Optional, becomes a webcam bubble</dd></div>
-          <div><dt>Cursor</dt><dd>Tracked at 120 Hz, then redrawn with motion blur and click bounce</dd></div>
-          <div><dt>After the take</dt><dd>Backdrop, padding, corners, crop, callouts, zooms and speed regions</dd></div>
-          <div><dt>Canvas</dt><dd>16:9, 9:16, 1:1 or 4:5, in one click</dd></div>
-        </dl>
-      </div>
-    </div>
-  </section>
-
-  <section class="chapter" id="stage" data-clip="1">
-    <div class="wrap grid">
-      <div class="copy">
-        <p class="label mono"><i style="background:var(--c-stage)"></i>02 — Stage</p>
-        <h2>A desktop that does <em>what you tell it.</em></h2>
-        <p>Live Video builds a simulated Mac: windows, a dock, and a menu bar with a running clock.</p>
-        <p>Plan the cursor as a list of actions: move, click, drag, type, scroll. Veenie works out the path and what each action does to the windows. Nothing is baked into keyframes.</p>
-        <p>Windows can be <strong>AI chats</strong> that stream their replies, <strong>terminals</strong> with output, browser tabs, video calls, or notifications that slide in.</p>
-      </div>
-      <figure class="media">
-        <div class="shot"><img src="img/live-video-cursor.jpg" alt="Planning cursor actions across windows in the Live Video workspace" width="2200" height="1305" loading="lazy"></div>
-        <figcaption class="mono">Cursor actions aimed at window parts</figcaption>
-      </figure>
-    </div>
-  </section>
-
-  <section class="chapter" id="edit" data-clip="2">
-    <div class="wrap grid">
-      <div class="copy">
-        <p class="label mono"><i style="background:var(--c-edit)"></i>03 — Edit</p>
-        <h2>One renderer for <em>preview and export.</em></h2>
-        <p>Text, code, shapes, transforms and keyframes are drawn live by the compositor. Most edits redraw instantly, and what you see in the preview is what you get in the file.</p>
-        <p>The timeline has multiple tracks, snapping, split, trim, ripple delete, speed and volume, with filmstrips and waveforms on every clip.</p>
-      </div>
-      <figure class="media">
-        <div class="shot"><img src="img/edit-workspace.jpg" alt="The Edit workspace with library, viewer, inspector and a multi-track timeline" width="2200" height="1305" loading="lazy"></div>
-        <figcaption class="mono">Edit workspace</figcaption>
-      </figure>
-    </div>
-  </section>
-
-  <section class="chapter" id="animate" data-clip="3">
-    <div class="wrap grid">
-      <div class="copy">
-        <p class="label mono"><i style="background:var(--c-animate)"></i>04 — Animate</p>
-        <h2>Keyframes, code, <em>or nodes.</em></h2>
-        <p>Click the diamond beside any property to add a keyframe, then shape the curve in the Keyframes editor.</p>
-        <p>For motion graphics, write <strong>TypeScript and JSX</strong> with a Motion Canvas–style API. Scenes are drawn at output resolution, so they stay sharp at any size. You can also switch a scene to Nodes and wire it up without code.</p>
-<pre><span class="t-c">// spotlight lines 1–2, then fade in</span>
-<span class="t-k">yield*</span> <span class="t-f">code</span>().<span class="t-f">selection</span>(<span class="t-f">lines</span>(<span class="t-n">1</span>, <span class="t-n">2</span>), <span class="t-n">0.6</span>);
-<span class="t-k">yield*</span> <span class="t-f">title</span>().<span class="t-f">opacity</span>(<span class="t-n">1</span>, <span class="t-n">0.4</span>);</pre>
-      </div>
-      <figure class="media">
-        <div class="shot"><img src="img/animate-workspace.jpg" alt="The Animate workspace with the keyframe curve editor" width="2200" height="1305" loading="lazy"></div>
-        <figcaption class="mono">Animate workspace — keyframes and easing</figcaption>
-      </figure>
-    </div>
+  <section class="film" id="film" data-clip="0">
     <div class="wrap">
-      <div class="sheet">
-        <figure>
-          <div class="shot"><img src="img/script-editor.jpg" alt="The script editor with TypeScript scene code" width="2200" height="1305" loading="lazy"></div>
-          <figcaption class="mono">Script editor</figcaption>
-        </figure>
-        <figure>
-          <div class="shot"><img src="img/code-clip.jpg" alt="A code clip with focused lines on the timeline" width="2200" height="1305" loading="lazy"></div>
-          <figcaption class="mono">Code clips with focus lines</figcaption>
-        </figure>
-        <figure>
-          <div class="shot"><img src="img/shading-workspace.jpg" alt="The Shading workspace with a shader node graph" width="2200" height="1305" loading="lazy"></div>
-          <figcaption class="mono">Shader graphs</figcaption>
-        </figure>
+      <div class="player">
+        <video id="film-video" controls playsinline preload="metadata" poster="video/poster.webp" width="2560" height="1440">
+          <source src="video/veenie-release-1440p.mp4" type="video/mp4">
+        </video>
       </div>
-    </div>
-  </section>
+      <div class="film-meta mono"><span>The release film</span><span>1:16 · 1440p · 60 fps</span></div>
 
-  <section class="chapter" id="caption" data-clip="4">
-    <div class="wrap grid">
-      <div class="copy">
-        <p class="label mono"><i style="background:var(--c-caption)"></i>05 — Caption</p>
-        <h2>Captions, transcribed <em>on your Mac.</em></h2>
-        <p>Veenie transcribes speech on your Mac into styled captions, with the spoken word highlighted as it plays.</p>
-        <p>Export them as SRT when you upload. Audio visuals like a waveform, bars, a spectrum or a pulse can follow the voice-over too.</p>
+      <div class="made-in">
+        <h2>Made in Veenie, <em>start to finish.</em></h2>
+        <p>Every chapter of that film is a clip on a Veenie timeline: script scenes, a screen recording, a shader graph and a staged desktop. It was rendered and exported by Veenie's own compositor. This is its project file.</p>
       </div>
-      <figure class="media">
-        <div class="shot"><img src="img/live-video-captions.jpg" alt="Captions with the current word highlighted over a Live Video scene" width="2200" height="1305" loading="lazy"></div>
-        <figcaption class="mono">Captions with spoken-word highlight</figcaption>
+      <figure>
+        <div class="shot"><img src="img/edit.webp" alt="The release film's project open in Veenie's Edit workspace, with its script scene in the viewer and every chapter on the timeline" width="2880" height="1760" fetchpriority="high"></div>
+        <figcaption class="mono"><span>Release.veenie — Edit workspace</span><span>Click any screenshot for full size</span></figcaption>
       </figure>
     </div>
   </section>
 
-  <section class="chapter" id="specs" data-clip="5">
-    <div class="wrap grid">
-      <div class="copy">
-        <p class="label mono"><i style="background:var(--c-specs)"></i>06 — Specs</p>
-        <h2>What's <em>in the box.</em></h2>
-        <p>Built in Swift on Apple's own media frameworks, so it uses your Mac's hardware for capture, playback and export.</p>
+  <section class="chapter" id="record" data-clip="1">
+    <div class="wrap">
+      <div class="head">
+        <div class="title">
+          <p class="label mono"><i style="background:var(--c-record)"></i>01 — Record</p>
+          <h2>Record once. <em>Fix it</em> afterwards.</h2>
+        </div>
+        <div class="body">
+          <p>Press <strong>⇧⌘R</strong> and capture a display or a window at native resolution. The cursor goes on its own track, so Veenie can redraw it smoothly, generate zooms from your clicks, and let you change all of it after the take.</p>
+        </div>
       </div>
-      <div class="media">
-        <dl class="specs">
-          <div><dt>Requires</dt><dd>macOS 15 or later</dd></div>
-          <div><dt>Built with</dt><dd>Swift 6, SwiftUI, AVFoundation, Core Image, ScreenCaptureKit</dd></div>
-          <div><dt>Export</dt><dd>H.264, HEVC and ProRes with explicit bitrate. Animated GIF. SRT captions.</dd></div>
-          <div><dt>Workspaces</dt><dd>Edit, Animate, Script, Live Video, Shading, Review. Split or add your own.</dd></div>
-          <div><dt>Scripting</dt><dd>TypeScript and JSX, signals, generator flow, flex layout, code morphing</dd></div>
-          <div><dt>Templates</dt><dd>Investigation Desktop, Group Video Call, Late-Night Chat</dd></div>
-          <div><dt>Assistant</dt><dd>Built-in sidebar using your own Anthropic API key</dd></div>
-          <div><dt>Automation</dt><dd>Local, authenticated MCP server with 46 tools for editing, rendering frames and exporting</dd></div>
-          <div><dt>Shortcuts</dt><dd><span class="mono">Space</span> play · <span class="mono">S</span> split · <span class="mono">⌘E</span> export · <span class="mono">⇧⌘R</span> record · <span class="mono">⌘?</span> help</dd></div>
-        </dl>
+      <figure>
+        <div class="shot"><img src="img/record.webp" alt="A screen recording on the timeline with backdrop, rounded window and zoom settings in the inspector" width="2880" height="1760" loading="lazy"></div>
+        <figcaption class="mono"><span>A recording with backdrop, corners, shadow and click zooms</span></figcaption>
+      </figure>
+      <dl class="specs big">
+        <div><dt>Video</dt><dd>HEVC or ProRes at native resolution</dd></div>
+        <div><dt>Audio</dt><dd>System audio, and the mic on its own track</dd></div>
+        <div><dt>Camera</dt><dd>Optional, shown as a webcam bubble</dd></div>
+        <div><dt>Cursor</dt><dd>Tracked at 120 Hz, redrawn with motion blur and click bounce</dd></div>
+        <div><dt>After the take</dt><dd>Backdrop, padding, corners, crop, callouts, zooms and speed regions</dd></div>
+        <div><dt>Canvas</dt><dd>16:9, 9:16, 1:1 or 4:5, in one click</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="chapter" id="script" data-clip="2">
+    <div class="wrap">
+      <div class="head">
+        <div class="title">
+          <p class="label mono"><i style="background:var(--c-script)"></i>02 — Script</p>
+          <h2>Motion Canvas, <em>built in.</em></h2>
+        </div>
+        <div class="body">
+          <p>Write scenes in <strong>TypeScript and JSX</strong> with signals, generator flow, flex layout, springs, code morphing and line selection. Scenes are simulated once and drawn at output resolution, so they stay sharp at any export size.</p>
+          <p>Prefer not to write code? Switch any scene to <strong>Nodes</strong> and wire objects, animations and values together. It compiles to the same script.</p>
+        </div>
       </div>
+      <figure>
+        <div class="shot"><img src="img/script.webp" alt="The Script workspace with the release film's scene source next to its live preview" width="2880" height="1760" loading="lazy"></div>
+        <figcaption class="mono"><span>Script workspace — scenes/script.tsx from the release film</span></figcaption>
+      </figure>
+      <div class="pair">
+        <figure>
+          <div class="shot"><img src="img/nodes.webp" alt="A scene built from nodes instead of code" width="2880" height="1760" loading="lazy"></div>
+          <figcaption class="mono"><span>The same scene system, as nodes</span></figcaption>
+        </figure>
+        <figure>
+          <div class="shot"><img src="img/script-code.webp" alt="Close-up of the release film&rsquo;s scene code in the script editor" width="1424" height="864" loading="lazy"></div>
+          <figcaption class="mono"><span>The script editor, actual size</span></figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter" id="shade" data-clip="3">
+    <div class="wrap">
+      <div class="head">
+        <div class="title">
+          <p class="label mono"><i style="background:var(--c-shade)"></i>03 — Shade</p>
+          <h2>Shaders, <em>wired by hand.</em></h2>
+        </div>
+        <div class="body">
+          <p>Build shaders as a graph of nodes, preview them live, and use one as a layer or draw it from a script scene with <strong>&lt;Shader&gt;</strong>. Parameters like speed and strength stay editable with their own ranges.</p>
+        </div>
+      </div>
+      <figure>
+        <div class="shot"><img src="img/shade.webp" alt="The Shading workspace with the release film's Cells shader graph" width="2880" height="1760" loading="lazy"></div>
+        <figcaption class="mono"><span>Shading workspace — the film's Cells graph</span></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="chapter" id="stage" data-clip="4">
+    <div class="wrap">
+      <div class="head">
+        <div class="title">
+          <p class="label mono"><i style="background:var(--c-stage)"></i>04 — Stage</p>
+          <h2>A desktop that does <em>what you tell it.</em></h2>
+        </div>
+        <div class="body">
+          <p>Live Video builds a simulated Mac: windows, a dock, a menu bar with a running clock. Windows can be a <strong>code editor</strong> that types itself, an <strong>AI chat</strong> that streams its replies, a terminal, a browser, a video call or a notification.</p>
+          <p>Plan the cursor as a list of actions (move, click, drag, type, scroll) and Veenie works out the path and what each action does to the windows. Add captions, transcribed on your Mac, with the spoken word highlighted.</p>
+        </div>
+      </div>
+      <figure>
+        <div class="shot"><img src="img/stage.webp" alt="The Live Video workspace: a simulated desktop with a code editor, an AI chat, a Veenie window and a notification" width="2880" height="1760" loading="lazy"></div>
+        <figcaption class="mono"><span>Live Video workspace — the film's Stage chapter</span></figcaption>
+      </figure>
+      <div class="pair">
+        <figure>
+          <div class="shot"><img src="img/cursor.webp" alt="The cursor's planned path and numbered action stops across the desktop's windows" width="1488" height="838" loading="lazy"></div>
+          <figcaption class="mono"><span>Cursor actions and their path, actual size</span></figcaption>
+        </figure>
+        <figure>
+          <div class="shot"><img src="img/stage-close.webp" alt="The staged desktop up close: a code editor typing scene.tsx, an AI chat and a notification" width="1488" height="838" loading="lazy"></div>
+          <figcaption class="mono"><span>The staged desktop, actual size</span></figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter" id="edit" data-clip="5">
+    <div class="wrap">
+      <div class="head">
+        <div class="title">
+          <p class="label mono"><i style="background:var(--c-edit)"></i>05 — Edit</p>
+          <h2>One renderer for <em>preview and export.</em></h2>
+        </div>
+        <div class="body">
+          <p>Keyframe any property, then shape the curve in the Keyframes editor. Text, code, shapes and transforms are drawn live by the compositor, so most edits redraw instantly and what you see is what ends up in the file.</p>
+          <p>A library of backgrounds, elements and transitions, templates to start from, and exports in H.264, HEVC, ProRes or GIF.</p>
+        </div>
+      </div>
+      <figure>
+        <div class="shot"><img src="img/animate.webp" alt="The Animate workspace with position, scale, rotation and opacity keyframes on their curves" width="2880" height="1760" loading="lazy"></div>
+        <figcaption class="mono"><span>Animate workspace — keyframes and easing curves</span></figcaption>
+      </figure>
+      <div class="trio boxed">
+        <figure>
+          <div class="shot"><img src="img/library.webp" alt="The Library on Backgrounds" width="580" height="1000" loading="lazy"></div>
+          <figcaption class="mono"><span>Library</span></figcaption>
+        </figure>
+        <figure>
+          <div class="shot"><img src="img/templates.webp" alt="The template gallery" width="1640" height="1120" loading="lazy"></div>
+          <figcaption class="mono"><span>Templates</span></figcaption>
+        </figure>
+        <figure>
+          <div class="shot"><img src="img/export.webp" alt="The Export sheet" width="920" height="758" loading="lazy"></div>
+          <figcaption class="mono"><span>Export</span></figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter" id="automate" data-clip="6">
+    <div class="wrap">
+      <div class="head">
+        <div class="title">
+          <p class="label mono"><i style="background:var(--c-auto)"></i>06 — Automate</p>
+          <h2>Ask for the edit. <em>Watch it happen.</em></h2>
+        </div>
+        <div class="body">
+          <p>The <strong>Assistant</strong> sidebar edits your project in plain language, using your own Anthropic API key. It can look at rendered frames while it works.</p>
+          <p>Other agents can connect too: Veenie runs a local, authenticated <strong>MCP server</strong> with 46 tools for project state, editing, undo, rendering frames and exporting.</p>
+        </div>
+      </div>
+      <figure>
+        <div class="shot"><img src="img/assistant.webp" alt="The Assistant sidebar making edits to the project" width="2880" height="1760" loading="lazy"></div>
+        <figcaption class="mono"><span>The Assistant at work</span></figcaption>
+      </figure>
+      <div class="pair">
+        <figure class="mcp">
+          <div class="terminal">
+            <p class="mono">Connect Claude Code</p>
+<pre><span class="t-c">$</span> claude mcp add --transport http veenie \
+    http://127.0.0.1:47810/mcp \
+    --header "Authorization: Bearer <span class="t-k">&lt;token&gt;</span>"</pre>
+            <p>The server listens on your Mac only. Clients need its token, and editing can be switched off so agents can only read, take screenshots and move around.</p>
+          </div>
+          <figcaption class="mono"><span>From Settings › AI &amp; Automation</span></figcaption>
+        </figure>
+        <figure>
+          <div class="shot"><img src="img/help.webp" alt="Veenie's built-in help on the Keyboard Shortcuts page" width="2000" height="1440" loading="lazy"></div>
+          <figcaption class="mono"><span>Searchable, illustrated help (⌘?)</span></figcaption>
+        </figure>
+      </div>
+
+      <dl class="specs">
+        <div><dt>Requires</dt><dd>macOS 15 or later</dd></div>
+        <div><dt>Built with</dt><dd>Swift 6, SwiftUI, AVFoundation, Core Image, ScreenCaptureKit, JavaScriptCore</dd></div>
+        <div><dt>Export</dt><dd>H.264, HEVC and ProRes with explicit bitrate. Animated GIF. SRT captions.</dd></div>
+        <div><dt>Workspaces</dt><dd>Edit, Animate, Script, Live Video, Shading, Review. Split, rearrange or add your own.</dd></div>
+        <div><dt>Templates</dt><dd>Investigation Desktop, Group Video Call, Late-Night Chat and more</dd></div>
+        <div><dt>Shortcuts</dt><dd>Space play · S split · ⌘E export · ⇧⌘R record · ⌘? help</dd></div>
+      </dl>
     </div>
   </section>
 </main>
 
 <section class="close">
   <div class="wrap">
-    <h2>Go make something <em>worth showing.</em></h2>
-    <a class="btn" href="https://github.com/LEWY254">Follow on GitHub
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 12 12 4M5.5 4H12v6.5"/></svg></a>
     <img class="shell" src="img/icon.png" alt="" width="220" height="220" loading="lazy">
+    <h2>Go make something <em>worth showing.</em></h2>
+    <a class="btn" href="#film" data-play>
+      <svg viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><path d="M3 1.5v11l9-5.5z"/></svg>
+      Watch the film again</a>
     <footer class="mono">
       <span>Veenie — devlogs and motion graphics for macOS</span>
-      <a href="https://github.com/LEWY254">GitHub ↗</a>
+      <span>© <span id="year">2026</span></span>
     </footer>
   </div>
 </section>
 
+<dialog class="zoom" id="zoom" aria-label="Screenshot at full size">
+  <div class="scroller"><img alt=""></div>
+  <span class="hint mono">Click or press Esc to close</span>
+</dialog>
+
 <script>
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  // "Watch the film" scrolls to the player and starts it.
+  var film = document.getElementById('film-video');
+  document.querySelectorAll('[data-play]').forEach(function (a) {
+    a.addEventListener('click', function () { setTimeout(function () { film.play().catch(function () {}); }, 450); });
+  });
+
+  // Screenshots open at their real pixel size (scaled for the screen's pixel density).
+  var zoom = document.getElementById('zoom'), zoomImg = zoom.querySelector('img');
+  document.querySelectorAll('.shot img').forEach(function (img) {
+    img.addEventListener('click', function () {
+      zoomImg.src = img.currentSrc || img.src;
+      zoomImg.alt = img.alt;
+      var fit = function () { zoomImg.style.width = (zoomImg.naturalWidth / (window.devicePixelRatio || 1)) + 'px'; };
+      if (zoomImg.complete) fit(); else zoomImg.onload = fit;
+      zoom.showModal();
+    });
+  });
+  zoom.addEventListener('click', function () { zoom.close(); });
+
   // Map scroll position onto the header timeline: each clip is as wide as its section is tall,
   // so the playhead sits inside the clip for whatever section you are reading.
   (function () {
@@ -400,8 +483,10 @@
     var head = document.querySelector('.playhead');
     var track = document.querySelector('.track');
     var tc = document.querySelector('.tc');
-    var FPS = 30, LENGTH = 90; // pretend the page is a 90 second edit
+    var FPS = 60, LENGTH = 76; // the length of the release film
     var bounds = [];
+
+    function pad(n) { return n < 10 ? '0' + n : '' + n; }
 
     function measure() {
       bounds = sections.map(function (s) { return { top: s.offsetTop, h: s.offsetHeight }; });
@@ -409,23 +494,18 @@
       update();
     }
 
-    function pad(n) { return n < 10 ? '0' + n : '' + n; }
-
     function update() {
       if (!bounds.length) return;
       var y = window.scrollY + window.innerHeight * 0.35;
-      var start = bounds[0].top, end = bounds[bounds.length - 1].top + bounds[bounds.length - 1].h;
-      var p = Math.min(1, Math.max(0, (y - start) / (end - start)));
+      var last = bounds[bounds.length - 1];
+      var p = Math.min(1, Math.max(0, (y - bounds[0].top) / (last.top + last.h - bounds[0].top)));
       if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2) p = 1;
-
       head.style.transform = 'translateX(' + (p * track.clientWidth) + 'px)';
-      var active = -1;
-      bounds.forEach(function (b, i) { if (y >= b.top && y < b.top + b.h) active = i; });
-      for (var i = 0; i < clips.length; i++) clips[i].classList.toggle('on', i === active);
-
-      var frames = Math.round(p * LENGTH * FPS);
-      var s = Math.floor(frames / FPS), f = frames % FPS;
-      tc.innerHTML = '00:' + pad(Math.floor(s / 60)) + ':<b>' + pad(s % 60) + ':' + pad(f) + '</b>';
+      for (var i = 0; i < clips.length; i++) {
+        clips[i].classList.toggle('on', y >= bounds[i].top && y < bounds[i].top + bounds[i].h);
+      }
+      var frames = Math.round(p * LENGTH * FPS), s = Math.floor(frames / FPS);
+      tc.innerHTML = '00:' + pad(Math.floor(s / 60)) + ':<b>' + pad(s % 60) + ':' + pad(frames % FPS) + '</b>';
     }
 
     window.addEventListener('scroll', update, { passive: true });
